@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (c *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
+func (c *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 	type paramaters struct {
 		Email string `json:"email"`
 	}
