@@ -1,3 +1,8 @@
+.vscode
 .air.*
+.env
+
 tmp/
 out
+
+note.md
