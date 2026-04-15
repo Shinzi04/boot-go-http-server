@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"gohttp/internal/auth"
 	"gohttp/internal/database"
 	"log"
 	"net/http"
@@ -13,7 +14,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Chrip struct {
+type Chirp struct {
 	ID        uuid.UUID `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -23,9 +24,21 @@ type Chrip struct {
 
 func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
 	type paramaters struct {
-		Body   string    `json:"body"`
-		UserId uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Not Authorization Bearer Detected", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't validate JWT", err)
+		return
+	}
+	// NOTE : If user and token is valid
 
 	decoder := json.NewDecoder(r.Body)
 	params := paramaters{}
@@ -44,7 +57,7 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 	// CHIRP IS VALID NOW
 	chirp, err := cfg.db.NewChirp(context.Background(), database.NewChirpParams{
 		Body:   cleaned,
-		UserID: params.UserId,
+		UserID: userID,
 	})
 
 	if err != nil {
@@ -52,7 +65,7 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	respondWithJSON(w, http.StatusCreated, Chrip{
+	respondWithJSON(w, http.StatusCreated, Chirp{
 		ID:        chirp.ID,
 		CreatedAt: chirp.CreatedAt,
 		UpdatedAt: chirp.UpdatedAt,

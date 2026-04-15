@@ -1,28 +1,43 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
+	"gohttp/internal/database"
 	"net/http"
 
 	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.db.GetChirps(context.Background())
+	s := r.URL.Query().Get("author_id")
+
+	var chirps []database.Chirp
+	var err error
+
+	if s != "" {
+		authorID, err := uuid.Parse(s)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid ID", err)
+			return
+		}
+		chirps, err = cfg.db.GetChirpByUserID(r.Context(), authorID)
+	} else {
+		chirps, err = cfg.db.GetChirps(r.Context())
+	}
+
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error while fetching users data", err)
+		respondWithError(w, http.StatusInternalServerError, "Error while fetching chirps data", err)
 		return
 	}
 
-	response := make([]Chrip, len(chirps))
-	for i, chrip := range chirps {
-		response[i] = Chrip{
-			ID:        chrip.ID,
-			CreatedAt: chrip.CreatedAt,
-			UpdatedAt: chrip.UpdatedAt,
-			Body:      chrip.Body,
-			UserID:    chrip.UserID,
+	response := make([]Chirp, len(chirps))
+	for i, chirp := range chirps {
+		response[i] = Chirp{
+			ID:        chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body:      chirp.Body,
+			UserID:    chirp.UserID,
 		}
 	}
 
@@ -32,26 +47,26 @@ func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	w.Write(data)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(data)
 }
 
-func (cfg *apiConfig) handlerChripsGet(w http.ResponseWriter, r *http.Request) {
-	chirpID := r.PathValue("chirpID")
-	chirpUUID, err := uuid.Parse(chirpID)
+func (cfg *apiConfig) handlerChirpsGet(w http.ResponseWriter, r *http.Request) {
+	chirpString := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(chirpString)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid ID", err)
 		return
 	}
 
-	chirp, err := cfg.db.GetChirpById(context.Background(), chirpUUID)
+	chirp, err := cfg.db.GetChirpById(r.Context(), chirpID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Error while fetching data", err)
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, Chrip{
+	respondWithJSON(w, http.StatusOK, Chirp{
 		ID:        chirp.ID,
 		CreatedAt: chirp.CreatedAt,
 		UpdatedAt: chirp.UpdatedAt,
