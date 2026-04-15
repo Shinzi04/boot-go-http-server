@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"gohttp/internal/database"
 	"net/http"
+	"sort"
 
 	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Request) {
 	s := r.URL.Query().Get("author_id")
+	sortBy := r.URL.Query().Get("sort")
 
 	var chirps []database.Chirp
 	var err error
@@ -39,6 +41,18 @@ func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Reque
 			Body:      chirp.Body,
 			UserID:    chirp.UserID,
 		}
+	}
+
+	// Sorting in memory
+	switch sortBy {
+	case "desc":
+		sort.Slice(response, func(i, j int) bool {
+			return response[i].CreatedAt.After(response[j].CreatedAt)
+		})
+	default: // "asc" or empty
+		sort.Slice(response, func(i, j int) bool {
+			return response[i].CreatedAt.Before(response[j].CreatedAt)
+		})
 	}
 
 	data, err := json.Marshal(response)
